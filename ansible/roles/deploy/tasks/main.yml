@@ -1,0 +1,90 @@
+- name: Create user
+  become: true
+  ansible.builtin.user:
+    name: nanobot
+    password: "*"
+    home: /home/nanobot
+  register: user_info
+
+- name: Create groups
+  become: true
+  ansible.builtin.group:
+    name: nanobot
+  register: group_info
+
+- name: Set home directory permissions
+  become: true
+  ansible.builtin.file:
+    path: /home/nanobot
+    owner: nanobot
+    group: nanobot
+    mode: "0750"
+    state: directory
+
+- name: Copy Dockerfile
+  become: true
+  ansible.builtin.copy:
+    src: "../dockerfile"
+    dest: "/home/nanobot/dockerfile"
+    owner: nanobot
+    group: nanobot
+    mode: "0640"
+
+- name: Copy Docker Compose file
+  become: true
+  ansible.builtin.copy:
+    src: "../docker-compose.yml"
+    dest: "/home/nanobot/docker-compose.yml"
+    owner: nanobot
+    group: nanobot
+    mode: "0640"
+
+- name: Handle Doppler secrets with cleanup
+  block:
+    - name: Create temporary file for Doppler secrets
+      delegate_to: localhost
+      become: false
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .env
+      register: temp_env_file
+
+    - name: Extract Doppler secrets to temporary file
+      delegate_to: localhost
+      become: false
+      ansible.builtin.shell:
+        cmd: |
+          doppler secrets download \
+            --no-file \
+            --format env > {{ temp_env_file.path }}
+      environment:
+        DOPPLER_TOKEN: "{{ lookup('env', 'DOPPLER_TOKEN') }}"
+
+    - name: Copy .env file from temporary file
+      become: true
+      ansible.builtin.copy:
+        src: "{{ temp_env_file.path }}"
+        dest: "/home/nanobot/.env"
+        owner: nanobot
+        group: nanobot
+        mode: "0640"
+
+  always:
+    - name: Remove temporary .env file
+      delegate_to: localhost
+      become: false
+      ansible.builtin.file:
+        path: "{{ temp_env_file.path }}"
+        state: absent
+      when: temp_env_file.path is defined
+
+- name: Start compose stack
+  become: true
+  community.docker.docker_compose_v2:
+    project_src: /home/nanobot
+    remove_orphans: true
+    env_files:
+      - .env
+  environment:
+    UID: "{{ user_info.uid }}"
+    GID: "{{ group_info.gid }}"

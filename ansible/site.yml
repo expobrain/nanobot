@@ -1,0 +1,5 @@
+- name: Deploy Telegram bot
+  hosts: all
+
+  roles:
+    - deploy
