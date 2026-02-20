@@ -4,13 +4,12 @@ WORKDIR /app
 
 # Install Python dependencies first (cached layer)
 COPY pyproject.toml README.md LICENSE ./
-RUN mkdir -p nanobot bridge && touch nanobot/__init__.py && \
+RUN mkdir -p nanobot && touch nanobot/__init__.py && \
     uv pip install --system --no-cache . && \
-    rm -rf nanobot bridge
+    rm -rf nanobot
 
 # Copy the full source and install
 COPY nanobot/ nanobot/
-COPY bridge/ bridge/
 RUN uv pip install --system --no-cache .
 
 # Create config directory
