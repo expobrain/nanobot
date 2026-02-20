@@ -12,7 +12,10 @@ deploy: deploy-image
 	doppler run -- ansible-playbook -v -i ansible/hosts ansible/site.yml
 
 up:
-	doppler run -- docker compose up -d --build
+	doppler run -- docker compose up -d --build --remove-orphans
 
 down:
 	doppler run -- docker compose down
+
+make restart:
+	doppler run -- docker compose restart
