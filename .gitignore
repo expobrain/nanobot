@@ -1,6 +1,5 @@
 .assets
 .env
-ansible/
 *.pyc
 dist/
 build/
