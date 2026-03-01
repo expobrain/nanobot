@@ -11,11 +11,17 @@ deploy: deploy-image
 	ansible-galaxy collection install "ansible.posix:>=1.5"
 	doppler run -- ansible-playbook -v -i ansible/hosts ansible/site.yml
 
-up:
-	doppler run -- docker compose up -d --build --remove-orphans
+up: build
+	doppler run -- docker compose up -d
 
 down:
 	doppler run -- docker compose down
 
-make restart:
+restart: build
 	doppler run -- docker compose restart
+
+build:
+	docker compose build
+
+logs:
+	docker logs -f nanobot-gateway
