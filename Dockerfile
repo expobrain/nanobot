@@ -4,13 +4,15 @@ WORKDIR /app
 
 # Install Python dependencies first (cached layer)
 COPY pyproject.toml README.md LICENSE ./
-RUN mkdir -p nanobot && touch nanobot/__init__.py && \
-    uv pip install --system --no-cache . && \
+RUN --mount=type=cache,target=/root/.cache/uv \
+    mkdir -p nanobot && touch nanobot/__init__.py && \
+    uv pip install --system . && \
     rm -rf nanobot
 
 # Copy the full source and install
 COPY nanobot/ nanobot/
-RUN uv pip install --system --no-cache .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system .
 
 # Create config directory
 RUN mkdir -p /root/.nanobot
