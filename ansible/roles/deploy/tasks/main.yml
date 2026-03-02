@@ -6,6 +6,12 @@
     home: /home/nanobot
   register: user_info
 
+- name: Install envsubst
+  become: true
+  ansible.builtin.package:
+    name: gettext
+    state: present
+
 - name: Create groups
   become: true
   ansible.builtin.group:
@@ -21,20 +27,29 @@
     mode: "0750"
     state: directory
 
-- name: Copy Dockerfile
+- name: Copy Docker Compose file
   become: true
   ansible.builtin.copy:
-    src: "../dockerfile"
-    dest: "/home/nanobot/dockerfile"
+    src: "{{ playbook_dir }}/../docker-compose.yml"
+    dest: "/home/nanobot/docker-compose.yml"
     owner: nanobot
     group: nanobot
     mode: "0640"
 
-- name: Copy Docker Compose file
+- name: Copy config.json.template
   become: true
   ansible.builtin.copy:
-    src: "../docker-compose.yml"
-    dest: "/home/nanobot/docker-compose.yml"
+    src: "{{ playbook_dir }}/../config.json.template"
+    dest: "/home/nanobot/config.json.template"
+    owner: nanobot
+    group: nanobot
+    mode: "0640"
+
+- name: Copy Dockerfile
+  become: true
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../Dockerfile"
+    dest: "/home/nanobot/Dockerfile"
     owner: nanobot
     group: nanobot
     mode: "0640"
@@ -68,6 +83,18 @@
         owner: nanobot
         group: nanobot
         mode: "0640"
+
+    - name: Generate config.json from template
+      become: true
+      ansible.builtin.shell: |
+        set -a
+        . /home/nanobot/.env
+        set +a
+        envsubst < /home/nanobot/config.json.template > /home/nanobot/config.json
+        chown nanobot:nanobot /home/nanobot/config.json
+      args:
+        executable: /bin/bash
+        creates: /home/nanobot/config.json
 
   always:
     - name: Remove temporary .env file

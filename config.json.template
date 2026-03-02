@@ -12,13 +12,13 @@
   "channels": {
     "telegram": {
       "enabled": true,
-      "token": "",
+      "token": "${TELEGRAM_API_TOKEN}",
       "allowFrom": []
     }
   },
   "providers": {
     "anthropic": {
-      "apiKey": ""
+      "apiKey": "${ANTHROPIC_API_KEY}"
     }
   },
   "gateway": {
@@ -28,7 +28,7 @@
   "tools": {
     "web": {
       "search": {
-        "apiKey": "",
+        "apiKey": "${SEARCH_API_KEY}",
         "maxResults": 5
       }
     },
