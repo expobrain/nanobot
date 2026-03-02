@@ -1,7 +1,5 @@
 x-common-config: &common-config
-  build:
-    context: .
-    dockerfile: Dockerfile
+  image: nanobot:latest
   volumes:
     - ~/.nanobot:/root/.nanobot
     - ./config.json:/root/.nanobot/config.json:ro
