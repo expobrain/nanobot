@@ -2,14 +2,17 @@
 
 import html
 import json
+import logging
 import os
 import re
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 
 from nanobot.agent.tools.base import Tool
+
+logger = logging.getLogger(__name__)
 
 # Shared constants
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7_2) AppleWebKit/537.36"
@@ -44,7 +47,7 @@ def _validate_url(url: str) -> tuple[bool, str]:
 
 
 class WebSearchTool(Tool):
-    """Search the web using Brave Search API."""
+    """Search the web using Brave Search API or DuckDuckGo."""
     
     name = "web_search"
     description = "Search the web. Returns titles, URLs, and snippets."
@@ -57,20 +60,76 @@ class WebSearchTool(Tool):
         "required": ["query"]
     }
     
-    def __init__(self, api_key: str | None = None, max_results: int = 5):
+    def __init__(self, provider: str = "brave", api_key: str | None = None, max_results: int = 5):
+        self.provider = provider
         self.api_key = api_key or os.environ.get("BRAVE_API_KEY", "")
         self.max_results = max_results
     
     async def execute(self, query: str, count: int | None = None, **kwargs: Any) -> str:
+        n = min(max(count or self.max_results, 1), 10)
+        
+        if self.provider == "duckduckgo":
+            return await self._search_duckduckgo(query, n)
+        else:
+            return await self._search_brave(query, n)
+    
+    async def _search_duckduckgo(self, query: str, count: int) -> str:
+        try:
+            logger.info(f"DuckDuckGo search: query={query!r}, count={count}")
+            
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    "https://html.duckduckgo.com/html/",
+                    params={"q": query},
+                    headers={"User-Agent": USER_AGENT},
+                    timeout=10.0
+                )
+                r.raise_for_status()
+                logger.debug(f"DuckDuckGo response status: {r.status_code}, body length: {len(r.text)}")
+            
+            blocks = r.text.split('class="result__a"')
+            logger.debug(f"DuckDuckGo: found {len(blocks) - 1} result blocks")
+            
+            results = []
+            for block in blocks[1:]:
+                url_match = re.search(r'href="([^"]+)"', block)
+                title_match = re.search(r'>([^<]+)</a>', block)
+                snippet_match = re.search(r'class="result__snippet"[^>]*>([\s\S]*?)</div>', block)
+                
+                if url_match and title_match:
+                    redirect_url = url_match.group(1)
+                    parsed = urlparse(redirect_url)
+                    actual_url = parse_qs(parsed.query).get("u", [redirect_url])[0]
+                    title = html.unescape(title_match.group(1))
+                    snippet = ""
+                    if snippet_match:
+                        snippet = re.sub(r'<[^>]+>', '', snippet_match.group(1)).strip()
+                    logger.debug(f"DuckDuckGo result: title={title!r}, url={actual_url!r}, snippet={snippet[:50]!r}...")
+                    results.append((actual_url, title, snippet))
+            
+            logger.info(f"DuckDuckGo: parsed {len(results)} results for query={query!r}")
+            
+            if not results:
+                return f"No results for: {query}"
+            
+            lines = [f"Results for: {query}\n"]
+            for i, (url, title, snippet) in enumerate(results[:count], 1):
+                lines.append(f"{i}. {title}\n   {url}")
+                if snippet:
+                    lines.append(f"   {snippet}")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"Error: {e}"
+    
+    async def _search_brave(self, query: str, count: int) -> str:
         if not self.api_key:
             return "Error: BRAVE_API_KEY not configured"
         
         try:
-            n = min(max(count or self.max_results, 1), 10)
             async with httpx.AsyncClient() as client:
                 r = await client.get(
                     "https://api.search.brave.com/res/v1/web/search",
-                    params={"q": query, "count": n},
+                    params={"q": query, "count": count},
                     headers={"Accept": "application/json", "X-Subscription-Token": self.api_key},
                     timeout=10.0
                 )
@@ -81,7 +140,7 @@ class WebSearchTool(Tool):
                 return f"No results for: {query}"
             
             lines = [f"Results for: {query}\n"]
-            for i, item in enumerate(results[:n], 1):
+            for i, item in enumerate(results[:count], 1):
                 lines.append(f"{i}. {item.get('title', '')}\n   {item.get('url', '')}")
                 if desc := item.get("description"):
                     lines.append(f"   {desc}")

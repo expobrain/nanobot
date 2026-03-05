@@ -28,7 +28,7 @@
   "tools": {
     "web": {
       "search": {
-        "apiKey": "${SEARCH_API_KEY}",
+        "provider": "duckduckgo",
         "maxResults": 5
       }
     },
