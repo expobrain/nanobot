@@ -2,7 +2,7 @@
   "agents": {
     "defaults": {
       "workspace": "~/.nanobot/workspace",
-      "model": "anthropic/claude-sonnet-4-20250514",
+      "model": "${MODEL_NAME}",
       "maxTokens": 8192,
       "temperature": 0.7,
       "maxToolIterations": 20,
@@ -28,14 +28,23 @@
   "tools": {
     "web": {
       "search": {
-        "apiKey": "${SEARCH_API_KEY}",
+        "provider": "duckduckgo",
         "maxResults": 5
       }
     },
     "exec": {
       "timeout": 60
     },
-    "restrictToWorkspace": false,
-    "mcpServers": {}
+    "restrictToWorkspace": true,
+    "mcpServers": {
+      "filesystem": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-filesystem",
+          ".nanobot/workspace/filesystem"
+        ]
+      }
+    }
   }
 }

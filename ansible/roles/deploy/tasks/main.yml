@@ -1,9 +1,27 @@
+- name: Create nanobot data directory
+  become: true
+  ansible.builtin.file:
+    path: /mnt/config/nanobot
+    owner: nanobot
+    group: nanobot
+    mode: "0750"
+    state: directory
+
+- name: Create symlink /home/nanobot -> /mnt/config/nanobot
+  become: true
+  ansible.builtin.file:
+    src: /mnt/config/nanobot
+    dest: /home/nanobot
+    state: link
+    force: true
+
 - name: Create user
   become: true
   ansible.builtin.user:
     name: nanobot
     password: "*"
-    home: /home/nanobot
+    home: /mnt/config/nanobot
+    create_home: false
   register: user_info
 
 - name: Install envsubst
@@ -17,15 +35,6 @@
   ansible.builtin.group:
     name: nanobot
   register: group_info
-
-- name: Set home directory permissions
-  become: true
-  ansible.builtin.file:
-    path: /home/nanobot
-    owner: nanobot
-    group: nanobot
-    mode: "0750"
-    state: directory
 
 - name: Copy Docker Compose file
   become: true

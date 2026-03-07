@@ -22,3 +22,6 @@ restart: image
 
 logs:
 	docker logs -f nanobot-gateway
+
+config:
+	doppler run -- envsubst < config.json.template > config.json
